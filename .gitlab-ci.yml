@@ -1,0 +1,53 @@
+stages:
+  - build
+  - publish
+  - deploy
+
+build_image:
+    stage: build
+    tags:
+        - merarunner
+    variables:
+        DOCKER_IMAGE: firstimage
+        SERVER_IP: 172.16.1.180
+        Home: /root
+        
+    script:
+        - sshpass -p $SERVER_PASSWORD scp -o StrictHostKeyChecking=no ./Dockerfile  $SERVER_USER@$SERVER_IP:/home/ubuntu
+
+        - sshpass -p $SERVER_PASSWORD ssh -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_IP <<EOF
+        - sudo docker image build -t $DOCKER_IMAGE .
+        - EOF
+
+publish_to_dockerhub:
+    stage: publish
+    tags:
+        - merarunner
+    variables:
+        DOCKER_IMAGE: firstimage
+        DOCKER_TAG: v1
+        SERVER_IP: 172.16.1.180
+        Home: /root
+    script:
+        - sshpass -p $SERVER_PASSWORD ssh -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_IP <<EOF
+        - sudo docker image tag $DOCKER_IMAGE $DOCKER_USER/$DOCKER_IMAGE:latest
+        - sudo docker login -u $DOCKER_USER -p $DOCKER_PASSWORD
+        - sudo docker image push $DOCKER_USER/$DOCKER_IMAGE:latest
+        - EOF
+
+
+
+building_container:
+    stage: deploy
+    tags:
+        - merarunner
+    variables:
+      SERVER_IP: 172.16.1.180
+      Home: /root
+    
+    script:
+        - sshpass -p $SERVER_PASSWORD ssh -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_IP <<EOF
+        - docker run -d --name cont1 -p80:80  firstimage
+        - EOF
+
+
